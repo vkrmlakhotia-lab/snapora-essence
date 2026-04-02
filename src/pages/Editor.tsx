@@ -1,0 +1,253 @@
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useBooks } from '@/context/BookContext';
+import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft } from 'lucide-react';
+import type { PageLayout, BookPhoto } from '@/types/book';
+
+const layoutOptions: { layout: PageLayout; label: string; icon: string }[] = [
+  { layout: '1-up', label: '1 Photo', icon: '▪' },
+  { layout: '2-up', label: '2 Photos', icon: '▪▪' },
+  { layout: '3-up', label: '3 Photos', icon: '▪▪▪' },
+];
+
+const Editor = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { projects, setCurrentProject, currentProject, updatePage, removePage } = useBooks();
+  const [pageIndex, setPageIndex] = useState(0);
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const [editingCaption, setEditingCaption] = useState(false);
+  const [captionText, setCaptionText] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [swapPhotoIndex, setSwapPhotoIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (id) setCurrentProject(id);
+  }, [id]);
+
+  if (!currentProject || currentProject.pages.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No pages to edit</p>
+      </div>
+    );
+  }
+
+  const page = currentProject.pages[pageIndex];
+  const totalPages = currentProject.pages.length;
+
+  const handleLayoutChange = (layout: PageLayout) => {
+    updatePage(page.id, { layout });
+    setShowLayoutPicker(false);
+  };
+
+  const handleCaptionSave = () => {
+    updatePage(page.id, { caption: captionText });
+    setEditingCaption(false);
+  };
+
+  const handlePhotoSwap = (files: FileList | null) => {
+    if (!files || !files[0] || swapPhotoIndex === null) return;
+    const newPhoto: BookPhoto = {
+      id: Math.random().toString(36).substring(2, 10),
+      url: URL.createObjectURL(files[0]),
+      file: files[0],
+    };
+    const newPhotos = [...page.photos];
+    newPhotos[swapPhotoIndex] = newPhoto;
+    updatePage(page.id, { photos: newPhotos });
+    setSwapPhotoIndex(null);
+  };
+
+  const renderPage = () => {
+    const photoClick = (index: number) => {
+      setSwapPhotoIndex(index);
+      fileRef.current?.click();
+    };
+
+    if (page.layout === '1-up') {
+      return (
+        <div className="w-full h-full relative cursor-pointer" onClick={() => photoClick(0)}>
+          {page.photos[0] ? (
+            <img src={page.photos[0].url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">Tap to add</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (page.layout === '2-up') {
+      return (
+        <div className="w-full h-full grid grid-cols-2 gap-0.5 bg-background p-0.5">
+          {[0, 1].map(i => (
+            <div key={i} className="overflow-hidden cursor-pointer" onClick={() => photoClick(i)}>
+              {page.photos[i] ? (
+                <img src={page.photos[i].url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                  <span className="text-[10px] text-muted-foreground">Tap</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-0.5 bg-background p-0.5">
+        {[0, 1, 2].map(i => (
+          <div
+            key={i}
+            className={`overflow-hidden cursor-pointer ${i === 0 ? 'col-span-2' : ''}`}
+            onClick={() => photoClick(i)}
+          >
+            {page.photos[i] ? (
+              <img src={page.photos[i].url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground">Tap</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => handlePhotoSwap(e.target.files)}
+      />
+
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-4 pt-12 pb-4">
+        <button onClick={() => navigate('/home')} className="p-2">
+          <ArrowLeft size={20} strokeWidth={1.5} className="text-foreground" />
+        </button>
+        <span className="text-sm font-medium text-foreground">{currentProject.title}</span>
+        <button
+          onClick={() => navigate('/preview/' + currentProject.id)}
+          className="p-2"
+        >
+          <Eye size={20} strokeWidth={1.5} className="text-foreground" />
+        </button>
+      </header>
+
+      {/* Page Display */}
+      <div className="flex-1 flex items-center justify-center px-6 py-4">
+        <div className="w-full max-w-sm aspect-square rounded-xl overflow-hidden book-shadow bg-card">
+          {renderPage()}
+        </div>
+      </div>
+
+      {/* Caption overlay */}
+      {page.caption && !editingCaption && (
+        <div className="px-6 -mt-2 mb-2">
+          <p className="text-xs text-muted-foreground text-center italic">{page.caption}</p>
+        </div>
+      )}
+
+      {/* Caption editor */}
+      {editingCaption && (
+        <div className="px-6 mb-4 animate-fade-in">
+          <input
+            type="text"
+            value={captionText}
+            onChange={e => setCaptionText(e.target.value)}
+            placeholder="Add a caption..."
+            className="w-full h-10 px-4 bg-card rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            autoFocus
+            onBlur={handleCaptionSave}
+            onKeyDown={e => e.key === 'Enter' && handleCaptionSave()}
+          />
+        </div>
+      )}
+
+      {/* Page navigation */}
+      <div className="flex items-center justify-center gap-4 py-2">
+        <button
+          onClick={() => setPageIndex(i => Math.max(0, i - 1))}
+          disabled={pageIndex === 0}
+          className="p-2 text-muted-foreground disabled:opacity-30"
+        >
+          <ChevronLeft size={18} strokeWidth={1.5} />
+        </button>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {pageIndex + 1} / {totalPages}
+        </span>
+        <button
+          onClick={() => setPageIndex(i => Math.min(totalPages - 1, i + 1))}
+          disabled={pageIndex === totalPages - 1}
+          className="p-2 text-muted-foreground disabled:opacity-30"
+        >
+          <ChevronRight size={18} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Layout picker */}
+      {showLayoutPicker && (
+        <div className="px-6 pb-4 animate-slide-up">
+          <div className="bg-card rounded-xl p-3 card-shadow flex gap-2">
+            {layoutOptions.map(opt => (
+              <button
+                key={opt.layout}
+                onClick={() => handleLayoutChange(opt.layout)}
+                className={`flex-1 py-3 rounded-lg text-xs font-medium transition-colors ${
+                  page.layout === opt.layout
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className="border-t border-border bg-background/80 backdrop-blur-xl">
+        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+          <button
+            onClick={() => setShowLayoutPicker(!showLayoutPicker)}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LayoutGrid size={18} strokeWidth={1.5} />
+            <span className="text-[10px]">Layout</span>
+          </button>
+          <button
+            onClick={() => { setCaptionText(page.caption || ''); setEditingCaption(true); }}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Type size={18} strokeWidth={1.5} />
+            <span className="text-[10px]">Caption</span>
+          </button>
+          <button
+            onClick={() => {
+              if (totalPages > 1) {
+                removePage(page.id);
+                setPageIndex(i => Math.max(0, i - 1));
+              }
+            }}
+            disabled={totalPages <= 1}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
+          >
+            <Trash2 size={18} strokeWidth={1.5} />
+            <span className="text-[10px]">Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Editor;
