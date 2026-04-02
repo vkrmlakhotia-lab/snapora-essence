@@ -1,23 +1,27 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
-import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings } from 'lucide-react';
 import type { PageLayout, BookPhoto } from '@/types/book';
+import { PAPER_FINISHES, BOOK_STYLES } from '@/types/book';
+import CollaboratePanel from '@/components/CollaboratePanel';
 
-const layoutOptions: { layout: PageLayout; label: string; icon: string }[] = [
-  { layout: '1-up', label: '1 Photo', icon: '▪' },
-  { layout: '2-up', label: '2 Photos', icon: '▪▪' },
-  { layout: '3-up', label: '3 Photos', icon: '▪▪▪' },
+const layoutOptions: { layout: PageLayout; label: string }[] = [
+  { layout: '1-up', label: '1 Photo' },
+  { layout: '2-up', label: '2 Photos' },
+  { layout: '3-up', label: '3 Photos' },
 ];
 
 const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, setCurrentProject, currentProject, updatePage, removePage } = useBooks();
+  const { projects, setCurrentProject, currentProject, updatePage, removePage, generateShareLink, addCollaborator, updateProjectSettings } = useBooks();
   const [pageIndex, setPageIndex] = useState(0);
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionText, setCaptionText] = useState('');
+  const [showCollaborate, setShowCollaborate] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [swapPhotoIndex, setSwapPhotoIndex] = useState<number | null>(null);
 
@@ -134,13 +138,49 @@ const Editor = () => {
           <ArrowLeft size={20} strokeWidth={1.5} className="text-foreground" />
         </button>
         <span className="text-sm font-medium text-foreground">{currentProject.title}</span>
-        <button
-          onClick={() => navigate('/preview/' + currentProject.id)}
-          className="p-2"
-        >
-          <Eye size={20} strokeWidth={1.5} className="text-foreground" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowCollaborate(!showCollaborate)} className="p-2">
+            <Users size={18} strokeWidth={1.5} className="text-foreground" />
+          </button>
+          <button onClick={() => navigate('/preview/' + currentProject.id)} className="p-2">
+            <Eye size={18} strokeWidth={1.5} className="text-foreground" />
+          </button>
+        </div>
       </header>
+
+      {/* Collaborate Panel */}
+      {showCollaborate && (
+        <div className="px-6 mb-4 animate-fade-in">
+          <CollaboratePanel
+            shareLink={currentProject.shareLink}
+            collaborators={currentProject.collaborators || []}
+            onGenerateLink={() => generateShareLink(currentProject.id)}
+            onAddCollaborator={addCollaborator}
+          />
+        </div>
+      )}
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="px-6 mb-4 animate-fade-in space-y-3">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Paper Finish</p>
+          <div className="flex gap-2">
+            {PAPER_FINISHES.map(f => (
+              <button
+                key={f.value}
+                onClick={() => updateProjectSettings({ paperFinish: f.value })}
+                className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  currentProject.paperFinish === f.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-card text-foreground card-shadow'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Page Display */}
       <div className="flex-1 flex items-center justify-center px-6 py-4">
@@ -149,14 +189,13 @@ const Editor = () => {
         </div>
       </div>
 
-      {/* Caption overlay */}
+      {/* Caption */}
       {page.caption && !editingCaption && (
         <div className="px-6 -mt-2 mb-2">
           <p className="text-xs text-muted-foreground text-center italic">{page.caption}</p>
         </div>
       )}
 
-      {/* Caption editor */}
       {editingCaption && (
         <div className="px-6 mb-4 animate-fade-in">
           <input
@@ -218,7 +257,7 @@ const Editor = () => {
       <div className="border-t border-border bg-background/80 backdrop-blur-xl">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           <button
-            onClick={() => setShowLayoutPicker(!showLayoutPicker)}
+            onClick={() => { setShowLayoutPicker(!showLayoutPicker); setShowSettings(false); }}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
           >
             <LayoutGrid size={18} strokeWidth={1.5} />
@@ -230,6 +269,13 @@ const Editor = () => {
           >
             <Type size={18} strokeWidth={1.5} />
             <span className="text-[10px]">Caption</span>
+          </button>
+          <button
+            onClick={() => { setShowSettings(!showSettings); setShowLayoutPicker(false); }}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Settings size={18} strokeWidth={1.5} />
+            <span className="text-[10px]">Finish</span>
           </button>
           <button
             onClick={() => {

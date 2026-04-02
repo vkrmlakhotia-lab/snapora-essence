@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useBooks } from '@/context/BookContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Package, ChevronRight } from 'lucide-react';
+import { LogOut, User, Package, ChevronRight, Truck } from 'lucide-react';
 
 const Account = () => {
   const { user, signOut } = useAuth();
@@ -37,12 +37,12 @@ const Account = () => {
       {/* Menu */}
       <div className="px-6 space-y-2">
         <button
-          onClick={() => navigate('/creations')}
+          onClick={() => navigate('/order-tracking')}
           className="w-full bg-card rounded-xl p-4 card-shadow flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <Package size={18} strokeWidth={1.5} className="text-muted-foreground" />
-            <span className="text-sm text-foreground">Order History</span>
+            <Truck size={18} strokeWidth={1.5} className="text-muted-foreground" />
+            <span className="text-sm text-foreground">Order Tracking</span>
           </div>
           <div className="flex items-center gap-2">
             {orderedCount > 0 && (
@@ -52,6 +52,17 @@ const Account = () => {
             )}
             <ChevronRight size={16} strokeWidth={1.5} className="text-muted-foreground" />
           </div>
+        </button>
+
+        <button
+          onClick={() => navigate('/creations')}
+          className="w-full bg-card rounded-xl p-4 card-shadow flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Package size={18} strokeWidth={1.5} className="text-muted-foreground" />
+            <span className="text-sm text-foreground">All Creations</span>
+          </div>
+          <ChevronRight size={16} strokeWidth={1.5} className="text-muted-foreground" />
         </button>
 
         <button
