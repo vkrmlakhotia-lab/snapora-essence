@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+
+    --card: 240 20% 98.4%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 220 42% 19.6%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 20% 98.4%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 240 10% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 240 20% 98.4%;
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 92%;
+    --input: 0 0% 92%;
+    --ring: 220 42% 19.6%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .page-transition {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .book-shadow {
+    box-shadow: 0 8px 30px -8px hsl(var(--primary) / 0.15),
+                0 2px 8px -2px hsl(var(--primary) / 0.08);
+  }
+
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.04),
+                0 1px 2px -1px hsl(0 0% 0% / 0.04);
+  }
+
+  .card-shadow-hover {
+    box-shadow: 0 4px 12px -2px hsl(0 0% 0% / 0.08),
+                0 2px 4px -2px hsl(0 0% 0% / 0.04);
+  }
+}
