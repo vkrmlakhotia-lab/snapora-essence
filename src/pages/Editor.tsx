@@ -17,6 +17,9 @@ const Editor = () => {
   const [captionText, setCaptionText] = useState('');
   const [showCollaborate, setShowCollaborate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDateEditor, setShowDateEditor] = useState(false);
+  const [dateText, setDateText] = useState('');
+  const [mapPinText, setMapPinText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [swapPhotoIndex, setSwapPhotoIndex] = useState<number | null>(null);
 
