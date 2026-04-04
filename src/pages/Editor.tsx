@@ -3,14 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
 import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings } from 'lucide-react';
 import type { PageLayout, BookPhoto } from '@/types/book';
-import { PAPER_FINISHES, BOOK_STYLES } from '@/types/book';
+import { PAPER_FINISHES, ALL_LAYOUTS } from '@/types/book';
 import CollaboratePanel from '@/components/CollaboratePanel';
-
-const layoutOptions: { layout: PageLayout; label: string }[] = [
-  { layout: '1-up', label: '1 Photo' },
-  { layout: '2-up', label: '2 Photos' },
-  { layout: '3-up', label: '3 Photos' },
-];
+import PageLayoutRenderer from '@/components/PageLayoutRenderer';
 
 const Editor = () => {
   const { id } = useParams();
@@ -63,64 +58,17 @@ const Editor = () => {
     setSwapPhotoIndex(null);
   };
 
-  const renderPage = () => {
-    const photoClick = (index: number) => {
-      setSwapPhotoIndex(index);
-      fileRef.current?.click();
-    };
-
-    if (page.layout === '1-up') {
-      return (
-        <div className="w-full h-full relative cursor-pointer" onClick={() => photoClick(0)}>
-          {page.photos[0] ? (
-            <img src={page.photos[0].url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">Tap to add</span>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (page.layout === '2-up') {
-      return (
-        <div className="w-full h-full grid grid-cols-2 gap-0.5 bg-background p-0.5">
-          {[0, 1].map(i => (
-            <div key={i} className="overflow-hidden cursor-pointer" onClick={() => photoClick(i)}>
-              {page.photos[i] ? (
-                <img src={page.photos[i].url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <span className="text-[10px] text-muted-foreground">Tap</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-0.5 bg-background p-0.5">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className={`overflow-hidden cursor-pointer ${i === 0 ? 'col-span-2' : ''}`}
-            onClick={() => photoClick(i)}
-          >
-            {page.photos[i] ? (
-              <img src={page.photos[i].url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground">Tap</span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
+  const photoClick = (index: number) => {
+    setSwapPhotoIndex(index);
+    fileRef.current?.click();
   };
+
+  // Group layouts by photo count for the picker
+  const groupedLayouts = ALL_LAYOUTS.reduce((acc, l) => {
+    if (!acc[l.photoCount]) acc[l.photoCount] = [];
+    acc[l.photoCount].push(l);
+    return acc;
+  }, {} as Record<number, typeof ALL_LAYOUTS>);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -185,7 +133,7 @@ const Editor = () => {
       {/* Page Display */}
       <div className="flex-1 flex items-center justify-center px-6 py-4">
         <div className="w-full max-w-sm aspect-square rounded-xl overflow-hidden book-shadow bg-card">
-          {renderPage()}
+          <PageLayoutRenderer page={page} onPhotoClick={photoClick} showCaption />
         </div>
       </div>
 
@@ -234,20 +182,29 @@ const Editor = () => {
 
       {/* Layout picker */}
       {showLayoutPicker && (
-        <div className="px-6 pb-4 animate-slide-up">
-          <div className="bg-card rounded-xl p-3 card-shadow flex gap-2">
-            {layoutOptions.map(opt => (
-              <button
-                key={opt.layout}
-                onClick={() => handleLayoutChange(opt.layout)}
-                className={`flex-1 py-3 rounded-lg text-xs font-medium transition-colors ${
-                  page.layout === opt.layout
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
+        <div className="px-4 pb-4 animate-fade-in max-h-[40vh] overflow-y-auto">
+          <div className="bg-card rounded-xl p-4 card-shadow space-y-3">
+            {Object.entries(groupedLayouts).map(([count, layouts]) => (
+              <div key={count}>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-2">
+                  {count} {Number(count) === 1 ? 'Photo' : 'Photos'}
+                </p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {layouts.map(opt => (
+                    <button
+                      key={opt.layout}
+                      onClick={() => handleLayoutChange(opt.layout)}
+                      className={`py-2.5 px-1 rounded-lg text-[10px] font-medium transition-colors leading-tight ${
+                        page.layout === opt.layout
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
