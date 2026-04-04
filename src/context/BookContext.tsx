@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { BookProject, BookPage, BookPhoto, PageLayout, PaperFinish, BookStyle, Collaborator } from '@/types/book';
+import { layoutPhotoCount } from '@/types/book';
 
 interface BookContextType {
   projects: BookProject[];
@@ -27,14 +28,14 @@ function autoLayout(photos: BookPhoto[], style?: BookStyle): BookPage[] {
   const pages: BookPage[] = [];
   let i = 0;
 
-  // Style-specific layout patterns
+  // Style-specific layout patterns using new layout types
   const layoutPatterns: Record<string, PageLayout[]> = {
-    classic: ['1-up', '2-up', '3-up', '2-up', '1-up'],
-    minimal: ['1-up', '1-up', '2-up', '1-up'],
-    wedding: ['1-up', '2-up', '1-up', '2-up'],
-    baby: ['1-up', '3-up', '2-up', '3-up', '1-up'],
-    yearbook: ['3-up', '2-up', '3-up', '2-up'],
-    travel: ['1-up', '1-up', '2-up', '3-up', '1-up'],
+    classic: ['full-bleed', 'split', 'hero-stack', 'grid-2x2', 'full-bleed'],
+    minimal: ['matted', 'full-bleed', 'two-verticals', 'matted'],
+    wedding: ['full-bleed', 'hero-detail', 'matted', 'split'],
+    baby: ['full-bleed', 'triptych', 'hero-stack', 'grid-2x2', 'full-bleed'],
+    yearbook: ['grid-2x2', 'hero-stack', 'triptych', 'split'],
+    travel: ['full-bleed', 'hero-detail', 'vert-horiz-pair', 'hero-stack', 'full-bleed'],
   };
 
   const layouts = layoutPatterns[style || 'classic'] || layoutPatterns.classic;
@@ -42,15 +43,26 @@ function autoLayout(photos: BookPhoto[], style?: BookStyle): BookPage[] {
 
   while (i < photos.length) {
     const layout = layouts[layoutIdx % layouts.length];
-    const count = layout === '1-up' ? 1 : layout === '2-up' ? 2 : 3;
-    const pagePhotos = photos.slice(i, i + count);
+    const count = layoutPhotoCount(layout);
+    const remaining = photos.length - i;
+    
+    // If not enough photos for this layout, pick a simpler one
+    let finalLayout = layout;
+    let finalCount = count;
+    if (remaining < count) {
+      if (remaining >= 3) { finalLayout = 'hero-stack'; finalCount = 3; }
+      else if (remaining >= 2) { finalLayout = 'split'; finalCount = 2; }
+      else { finalLayout = 'full-bleed'; finalCount = 1; }
+    }
+
+    const pagePhotos = photos.slice(i, i + finalCount);
     pages.push({
       id: generateId(),
-      layout: pagePhotos.length === 1 ? '1-up' : pagePhotos.length === 2 ? '2-up' : '3-up',
+      layout: finalLayout,
       photos: pagePhotos,
       caption: '',
     });
-    i += count;
+    i += finalCount;
     layoutIdx++;
   }
 
