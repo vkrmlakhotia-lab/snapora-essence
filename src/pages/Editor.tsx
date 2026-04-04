@@ -130,9 +130,9 @@ const Editor = () => {
         </div>
       )}
 
-      {/* Page Display */}
+      {/* Page Display - A4 Landscape */}
       <div className="flex-1 flex items-center justify-center px-6 py-4">
-        <div className="w-full max-w-sm aspect-square rounded-xl overflow-hidden book-shadow bg-card">
+        <div className="w-full max-w-lg aspect-[1.414/1] rounded-xl overflow-hidden book-shadow bg-card">
           <PageLayoutRenderer page={page} onPhotoClick={photoClick} showCaption />
         </div>
       </div>

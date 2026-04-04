@@ -97,7 +97,7 @@ const Checkout = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-foreground">{currentProject.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{pageCount} pages · 1:1 Square</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{pageCount} pages · A4 Landscape</p>
                 <p className="text-xs text-muted-foreground">{finishLabel} finish</p>
                 {currentProject.style && currentProject.style !== 'classic' && (
                   <p className="text-xs text-muted-foreground capitalize">{currentProject.style} style</p>
