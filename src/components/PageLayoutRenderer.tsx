@@ -1,4 +1,5 @@
 import type { BookPage, BookPhoto } from '@/types/book';
+import { MapPin, Calendar } from 'lucide-react';
 
 interface Props {
   page: BookPage;
@@ -24,18 +25,45 @@ const Photo = ({ photo, index, onClick }: { photo?: BookPhoto; index: number; on
   );
 };
 
+const Overlays = ({ page }: { page: BookPage }) => (
+  <>
+    {/* Date label overlay */}
+    {page.dateLabel && (
+      <div className="absolute top-2 left-2 z-20 flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
+        <Calendar size={10} strokeWidth={1.5} className="text-primary" />
+        <span className="text-[9px] font-medium text-foreground">{page.dateLabel}</span>
+      </div>
+    )}
+    {/* Map overlay */}
+    {page.mapUrl && (
+      <div className="absolute bottom-2 right-2 z-20 w-16 h-16 rounded-lg overflow-hidden border-2 border-background shadow-md">
+        <img src={page.mapUrl} alt="Location" className="w-full h-full object-cover" />
+        {page.mapPinLabel && (
+          <div className="absolute inset-0 flex items-end justify-center pb-0.5">
+            <div className="flex items-center gap-0.5 bg-background/90 rounded-full px-1 py-px">
+              <MapPin size={7} className="text-primary" />
+              <span className="text-[6px] font-medium text-foreground truncate max-w-[40px]">{page.mapPinLabel}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </>
+);
+
 const PageLayoutRenderer = ({ page, onPhotoClick, showCaption = true }: Props) => {
   const p = page.photos;
   const click = onPhotoClick;
 
   const caption = showCaption && page.caption ? (
-    <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm px-4 py-2 z-10">
-      <p className="text-xs text-foreground/80">{page.caption}</p>
+    <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm px-3 py-1.5 z-10">
+      <p className="text-[10px] text-foreground/80">{page.caption}</p>
     </div>
   ) : null;
 
   const wrap = (children: React.ReactNode, className?: string) => (
     <div className={`w-full h-full relative ${className || ''}`}>
+      <Overlays page={page} />
       {children}
       {caption}
     </div>

@@ -42,6 +42,9 @@ export interface BookPage {
   layout: PageLayout;
   photos: BookPhoto[];
   caption?: string;
+  dateLabel?: string;
+  mapUrl?: string;
+  mapPinLabel?: string;
 }
 
 export interface Collaborator {

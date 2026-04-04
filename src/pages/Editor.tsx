@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
-import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings, Calendar, MapPin } from 'lucide-react';
 import type { PageLayout, BookPhoto } from '@/types/book';
 import { PAPER_FINISHES, ALL_LAYOUTS } from '@/types/book';
 import CollaboratePanel from '@/components/CollaboratePanel';
@@ -17,6 +17,9 @@ const Editor = () => {
   const [captionText, setCaptionText] = useState('');
   const [showCollaborate, setShowCollaborate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDateEditor, setShowDateEditor] = useState(false);
+  const [dateText, setDateText] = useState('');
+  const [mapPinText, setMapPinText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [swapPhotoIndex, setSwapPhotoIndex] = useState<number | null>(null);
 
@@ -130,9 +133,9 @@ const Editor = () => {
         </div>
       )}
 
-      {/* Page Display */}
+      {/* Page Display - A4 Landscape */}
       <div className="flex-1 flex items-center justify-center px-6 py-4">
-        <div className="w-full max-w-sm aspect-square rounded-xl overflow-hidden book-shadow bg-card">
+        <div className="w-full max-w-lg aspect-[1.414/1] rounded-xl overflow-hidden book-shadow bg-card">
           <PageLayoutRenderer page={page} onPhotoClick={photoClick} showCaption />
         </div>
       </div>
@@ -210,11 +213,61 @@ const Editor = () => {
         </div>
       )}
 
+      {/* Date & Map Editor */}
+      {showDateEditor && (
+        <div className="px-6 mb-4 animate-fade-in space-y-3">
+          <div>
+            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Date Label</label>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                value={dateText}
+                onChange={e => setDateText(e.target.value)}
+                placeholder="e.g. 22 March"
+                className="flex-1 h-9 px-3 bg-card rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                onClick={() => { updatePage(page.id, { dateLabel: dateText || undefined }); }}
+                className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
+              >
+                Set
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Map Pin Label</label>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="text"
+                value={mapPinText}
+                onChange={e => setMapPinText(e.target.value)}
+                placeholder="e.g. London, UK"
+                className="flex-1 h-9 px-3 bg-card rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                onClick={() => {
+                  if (mapPinText) {
+                    // Generate a static map URL (mock with OpenStreetMap tile)
+                    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(mapPinText)}&zoom=10&size=200x200&scale=2&maptype=roadmap&key=demo`;
+                    updatePage(page.id, { mapPinLabel: mapPinText, mapUrl: `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${encodeURIComponent(mapPinText)},10,0/200x200?access_token=placeholder` });
+                  } else {
+                    updatePage(page.id, { mapPinLabel: undefined, mapUrl: undefined });
+                  }
+                }}
+                className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
+              >
+                Set
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           <button
-            onClick={() => { setShowLayoutPicker(!showLayoutPicker); setShowSettings(false); }}
+            onClick={() => { setShowLayoutPicker(!showLayoutPicker); setShowSettings(false); setShowDateEditor(false); }}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
           >
             <LayoutGrid size={18} strokeWidth={1.5} />
@@ -228,7 +281,14 @@ const Editor = () => {
             <span className="text-[10px]">Caption</span>
           </button>
           <button
-            onClick={() => { setShowSettings(!showSettings); setShowLayoutPicker(false); }}
+            onClick={() => { setShowDateEditor(!showDateEditor); setShowLayoutPicker(false); setShowSettings(false); setDateText(page.dateLabel || ''); setMapPinText(page.mapPinLabel || ''); }}
+            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Calendar size={18} strokeWidth={1.5} />
+            <span className="text-[10px]">Date/Map</span>
+          </button>
+          <button
+            onClick={() => { setShowSettings(!showSettings); setShowLayoutPicker(false); setShowDateEditor(false); }}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
           >
             <Settings size={18} strokeWidth={1.5} />

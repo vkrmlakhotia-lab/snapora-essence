@@ -40,7 +40,7 @@ const Creations = () => {
                 onClick={() => navigate(project.status === 'ordered' ? '/preview/' + project.id : '/editor/' + project.id)}
                 className="flex items-center gap-4 flex-1 text-left"
               >
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                <div className="w-20 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                   {project.coverPhoto ? (
                     <img src={project.coverPhoto} alt={project.title} className="w-full h-full object-cover" />
                   ) : (
