@@ -6,7 +6,32 @@ export interface BookPhoto {
   isDuplicate?: boolean;
 }
 
-export type PageLayout = '1-up' | '2-up' | '3-up';
+// Layout types: {count}-{variant}
+export type PageLayout =
+  // 1 photo
+  | 'full-bleed'
+  | 'matted'
+  | 'left-portrait'
+  // 2 photos
+  | 'split'
+  | 'hero-detail'
+  | 'two-verticals'
+  // 3 photos
+  | 'triptych'
+  | 'hero-stack'
+  | 'triple-vertical'
+  // 4 photos
+  | 'grid-2x2'
+  | 'hero-triptych'
+  // 5 photos
+  | 'hero-right-stack'
+  | 'two-large-three-wide'
+  // 6 photos
+  | 'grid-3x2'
+  | 'hero-mixed-stack'
+  // Mixed orientation
+  | 'vert-horiz-pair'
+  | 'landscape-top-two-vert';
 
 export type PaperFinish = 'matte' | 'glossy' | 'layflat';
 
@@ -78,4 +103,66 @@ export const AI_PROMPTS: { prompt: string; label: string }[] = [
   { prompt: 'Cinematic travel journal with full-bleed photos', label: 'Travel Journal' },
   { prompt: 'Modern yearbook with clean grid layouts', label: 'Year in Review' },
   { prompt: 'Cozy family memories with warm tones', label: 'Family Memories' },
+];
+
+/** How many photos a layout expects */
+export function layoutPhotoCount(layout: PageLayout): number {
+  switch (layout) {
+    case 'full-bleed':
+    case 'matted':
+    case 'left-portrait':
+      return 1;
+    case 'split':
+    case 'hero-detail':
+    case 'two-verticals':
+      return 2;
+    case 'triptych':
+    case 'hero-stack':
+    case 'triple-vertical':
+    case 'vert-horiz-pair':
+    case 'landscape-top-two-vert':
+      return 3;
+    case 'grid-2x2':
+    case 'hero-triptych':
+      return 4;
+    case 'hero-right-stack':
+    case 'two-large-three-wide':
+      return 5;
+    case 'grid-3x2':
+    case 'hero-mixed-stack':
+      return 6;
+  }
+}
+
+export interface LayoutOption {
+  layout: PageLayout;
+  label: string;
+  photoCount: number;
+}
+
+export const ALL_LAYOUTS: LayoutOption[] = [
+  // 1 photo
+  { layout: 'full-bleed', label: 'Full Bleed', photoCount: 1 },
+  { layout: 'matted', label: 'Matted', photoCount: 1 },
+  { layout: 'left-portrait', label: 'Left Portrait', photoCount: 1 },
+  // 2 photos
+  { layout: 'split', label: 'Split', photoCount: 2 },
+  { layout: 'hero-detail', label: 'Hero + Detail', photoCount: 2 },
+  { layout: 'two-verticals', label: 'Two Verticals', photoCount: 2 },
+  // 3 photos
+  { layout: 'triptych', label: 'Triptych', photoCount: 3 },
+  { layout: 'hero-stack', label: 'Hero + Stack', photoCount: 3 },
+  { layout: 'triple-vertical', label: 'Triple Vertical', photoCount: 3 },
+  // 4 photos
+  { layout: 'grid-2x2', label: '2×2 Grid', photoCount: 4 },
+  { layout: 'hero-triptych', label: 'Hero + Triptych', photoCount: 4 },
+  // 5 photos
+  { layout: 'hero-right-stack', label: 'Hero + Stack', photoCount: 5 },
+  { layout: 'two-large-three-wide', label: '2 + 3 Grid', photoCount: 5 },
+  // 6 photos
+  { layout: 'grid-3x2', label: '3×2 Grid', photoCount: 6 },
+  { layout: 'hero-mixed-stack', label: 'Hero + Mixed', photoCount: 6 },
+  // Mixed
+  { layout: 'vert-horiz-pair', label: 'Vert + Horiz', photoCount: 3 },
+  { layout: 'landscape-top-two-vert', label: 'Top + 2 Vert', photoCount: 3 },
 ];
