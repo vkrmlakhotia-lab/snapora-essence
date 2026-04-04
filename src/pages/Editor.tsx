@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
-import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings, Calendar, MapPin } from 'lucide-react';
 import type { PageLayout, BookPhoto } from '@/types/book';
 import { PAPER_FINISHES, ALL_LAYOUTS } from '@/types/book';
 import CollaboratePanel from '@/components/CollaboratePanel';
