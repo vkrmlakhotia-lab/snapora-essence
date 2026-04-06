@@ -8,7 +8,7 @@ const Onboarding = () => {
 
   const handleSignIn = (provider: 'google' | 'apple') => {
     signIn(provider);
-    navigate('/home');
+    // OAuth redirect is handled externally — Supabase redirects back to the app
   };
 
   return (
@@ -18,7 +18,7 @@ const Onboarding = () => {
         <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6">
           <BookOpen size={28} strokeWidth={1.5} className="text-primary-foreground" />
         </div>
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Snaporia</h1>
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Snapora</h1>
         <p className="text-muted-foreground text-sm mt-2 text-center max-w-[240px] leading-relaxed">
           Turn your favorite moments into beautifully crafted photobooks
         </p>

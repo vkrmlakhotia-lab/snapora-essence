@@ -28,8 +28,8 @@ const Account = () => {
             <User size={20} strokeWidth={1.5} className="text-primary-foreground" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">{user?.name || 'User'}</p>
-            <p className="text-xs text-muted-foreground">{user?.email || 'user@email.com'}</p>
+            <p className="text-sm font-medium text-foreground">{user?.user_metadata?.full_name || user?.user_metadata?.name || 'User'}</p>
+            <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
           </div>
         </div>
       </div>

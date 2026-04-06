@@ -1,25 +1,57 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
-import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings, Calendar, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Type, LayoutGrid, Trash2, ArrowLeft, Users, Settings } from 'lucide-react';
 import type { PageLayout, BookPhoto } from '@/types/book';
-import { PAPER_FINISHES, ALL_LAYOUTS } from '@/types/book';
+import { PAPER_FINISHES, LAYOUT_PHOTO_COUNT } from '@/types/book';
 import CollaboratePanel from '@/components/CollaboratePanel';
-import PageLayoutRenderer from '@/components/PageLayoutRenderer';
+import PageRenderer from '@/components/PageRenderer';
+
+// Grouped layout options for the picker
+const LAYOUT_GROUPS: { label: string; layouts: { layout: PageLayout; label: string; slots: number }[] }[] = [
+  {
+    label: 'Photos Only',
+    layouts: [
+      { layout: 'full-bleed', label: 'Full Bleed', slots: 1 },
+      { layout: 'single-bordered', label: 'Bordered', slots: 1 },
+      { layout: 'two-stacked', label: '2 Stacked', slots: 2 },
+      { layout: 'two-side', label: '2 Side', slots: 2 },
+      { layout: 'three-mixed', label: '3 Mixed', slots: 3 },
+      { layout: 'four-grid', label: '4 Grid', slots: 4 },
+      { layout: 'five-collage', label: '5 Collage', slots: 5 },
+    ],
+  },
+  {
+    label: 'Photos & Text',
+    layouts: [
+      { layout: 'photo-caption-below', label: 'Caption Below', slots: 1 },
+      { layout: 'photo-caption-above', label: 'Title Above', slots: 1 },
+      { layout: 'text-left-photo-right', label: 'Text + Photo', slots: 1 },
+      { layout: 'photo-left-text-right', label: 'Photo + Text', slots: 1 },
+    ],
+  },
+  {
+    label: 'Special',
+    layouts: [
+      { layout: 'text-only', label: 'Text Only', slots: 0 },
+      { layout: 'cover', label: 'Cover', slots: 1 },
+    ],
+  },
+];
 
 const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, setCurrentProject, currentProject, updatePage, removePage, generateShareLink, addCollaborator, updateProjectSettings } = useBooks();
+  const {
+    setCurrentProject, currentProject, updatePage, removePage,
+    generateShareLink, addCollaborator, updateProjectSettings,
+  } = useBooks();
   const [pageIndex, setPageIndex] = useState(0);
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionText, setCaptionText] = useState('');
   const [showCollaborate, setShowCollaborate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showDateEditor, setShowDateEditor] = useState(false);
-  const [dateText, setDateText] = useState('');
-  const [mapPinText, setMapPinText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [swapPhotoIndex, setSwapPhotoIndex] = useState<number | null>(null);
 
@@ -60,18 +92,6 @@ const Editor = () => {
     updatePage(page.id, { photos: newPhotos });
     setSwapPhotoIndex(null);
   };
-
-  const photoClick = (index: number) => {
-    setSwapPhotoIndex(index);
-    fileRef.current?.click();
-  };
-
-  // Group layouts by photo count for the picker
-  const groupedLayouts = ALL_LAYOUTS.reduce((acc, l) => {
-    if (!acc[l.photoCount]) acc[l.photoCount] = [];
-    acc[l.photoCount].push(l);
-    return acc;
-  }, {} as Record<number, typeof ALL_LAYOUTS>);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -133,32 +153,45 @@ const Editor = () => {
         </div>
       )}
 
-      {/* Page Display - A4 Landscape */}
+      {/* Page Display */}
       <div className="flex-1 flex items-center justify-center px-6 py-4">
-        <div className="w-full max-w-lg aspect-[1.414/1] rounded-xl overflow-hidden book-shadow bg-card">
-          <PageLayoutRenderer page={page} onPhotoClick={photoClick} showCaption />
+        <div className="w-full max-w-sm aspect-square rounded-xl overflow-hidden book-shadow bg-white">
+          <PageRenderer
+            page={page}
+            title={currentProject.title}
+            interactive
+            onPhotoClick={i => {
+              setSwapPhotoIndex(i);
+              fileRef.current?.click();
+            }}
+          />
         </div>
       </div>
 
       {/* Caption */}
       {page.caption && !editingCaption && (
         <div className="px-6 -mt-2 mb-2">
-          <p className="text-xs text-muted-foreground text-center italic">{page.caption}</p>
+          <p className="text-xs text-muted-foreground text-center italic truncate">{page.caption.split('\n')[0]}</p>
         </div>
       )}
 
       {editingCaption && (
         <div className="px-6 mb-4 animate-fade-in">
-          <input
-            type="text"
+          <textarea
             value={captionText}
             onChange={e => setCaptionText(e.target.value)}
-            placeholder="Add a caption..."
-            className="w-full h-10 px-4 bg-card rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder={
+              page.layout === 'text-only' || page.layout === 'cover'
+                ? 'Title\nSubtitle or description'
+                : page.layout === 'photo-caption-above' || page.layout === 'text-left-photo-right'
+                ? 'Title\nBody text (optional)'
+                : 'Add a caption...'
+            }
+            className="w-full h-16 px-4 py-2 bg-card rounded-lg text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
             autoFocus
             onBlur={handleCaptionSave}
-            onKeyDown={e => e.key === 'Enter' && handleCaptionSave()}
           />
+          <p className="text-[10px] text-muted-foreground mt-1 px-1">Use a new line to separate title from body text</p>
         </div>
       )}
 
@@ -185,25 +218,28 @@ const Editor = () => {
 
       {/* Layout picker */}
       {showLayoutPicker && (
-        <div className="px-4 pb-4 animate-fade-in max-h-[40vh] overflow-y-auto">
-          <div className="bg-card rounded-xl p-4 card-shadow space-y-3">
-            {Object.entries(groupedLayouts).map(([count, layouts]) => (
-              <div key={count}>
+        <div className="px-4 pb-4 animate-slide-up max-h-64 overflow-y-auto">
+          <div className="bg-card rounded-xl p-3 card-shadow space-y-3">
+            {LAYOUT_GROUPS.map(group => (
+              <div key={group.label}>
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-2">
-                  {count} {Number(count) === 1 ? 'Photo' : 'Photos'}
+                  {group.label}
                 </p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {layouts.map(opt => (
+                <div className="flex flex-wrap gap-2">
+                  {group.layouts.map(opt => (
                     <button
                       key={opt.layout}
                       onClick={() => handleLayoutChange(opt.layout)}
-                      className={`py-2.5 px-1 rounded-lg text-[10px] font-medium transition-colors leading-tight ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                         page.layout === opt.layout
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {opt.label}
+                      <span className="ml-1 opacity-50">
+                        {opt.slots > 0 ? `·${opt.slots}` : ''}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -213,83 +249,26 @@ const Editor = () => {
         </div>
       )}
 
-      {/* Date & Map Editor */}
-      {showDateEditor && (
-        <div className="px-6 mb-4 animate-fade-in space-y-3">
-          <div>
-            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Date Label</label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="text"
-                value={dateText}
-                onChange={e => setDateText(e.target.value)}
-                placeholder="e.g. 22 March"
-                className="flex-1 h-9 px-3 bg-card rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <button
-                onClick={() => { updatePage(page.id, { dateLabel: dateText || undefined }); }}
-                className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
-              >
-                Set
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Map Pin Label</label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="text"
-                value={mapPinText}
-                onChange={e => setMapPinText(e.target.value)}
-                placeholder="e.g. London, UK"
-                className="flex-1 h-9 px-3 bg-card rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <button
-                onClick={() => {
-                  if (mapPinText) {
-                    // Generate a static map URL (mock with OpenStreetMap tile)
-                    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(mapPinText)}&zoom=10&size=200x200&scale=2&maptype=roadmap&key=demo`;
-                    updatePage(page.id, { mapPinLabel: mapPinText, mapUrl: `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${encodeURIComponent(mapPinText)},10,0/200x200?access_token=placeholder` });
-                  } else {
-                    updatePage(page.id, { mapPinLabel: undefined, mapUrl: undefined });
-                  }
-                }}
-                className="h-9 px-3 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
-              >
-                Set
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Toolbar */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           <button
-            onClick={() => { setShowLayoutPicker(!showLayoutPicker); setShowSettings(false); setShowDateEditor(false); }}
-            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => { setShowLayoutPicker(!showLayoutPicker); setShowSettings(false); }}
+            className={`flex flex-col items-center gap-0.5 transition-colors ${showLayoutPicker ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <LayoutGrid size={18} strokeWidth={1.5} />
             <span className="text-[10px]">Layout</span>
           </button>
           <button
-            onClick={() => { setCaptionText(page.caption || ''); setEditingCaption(true); }}
+            onClick={() => { setCaptionText(page.caption || ''); setEditingCaption(true); setShowLayoutPicker(false); setShowSettings(false); }}
             className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
           >
             <Type size={18} strokeWidth={1.5} />
             <span className="text-[10px]">Caption</span>
           </button>
           <button
-            onClick={() => { setShowDateEditor(!showDateEditor); setShowLayoutPicker(false); setShowSettings(false); setDateText(page.dateLabel || ''); setMapPinText(page.mapPinLabel || ''); }}
-            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Calendar size={18} strokeWidth={1.5} />
-            <span className="text-[10px]">Date/Map</span>
-          </button>
-          <button
-            onClick={() => { setShowSettings(!showSettings); setShowLayoutPicker(false); setShowDateEditor(false); }}
-            className="flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => { setShowSettings(!showSettings); setShowLayoutPicker(false); }}
+            className={`flex flex-col items-center gap-0.5 transition-colors ${showSettings ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             <Settings size={18} strokeWidth={1.5} />
             <span className="text-[10px]">Finish</span>

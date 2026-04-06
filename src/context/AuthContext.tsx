@@ -1,51 +1,70 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  name: string;
-  email: string;
-  avatar?: string;
-}
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import type { User, Session } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 
 interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  signIn: (provider: 'google' | 'apple') => void;
-  signOut: () => void;
+  user: User | null
+  session: Session | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  signIn: (provider: 'google' | 'apple') => Promise<void>
+  signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem('snaporia_user');
-    if (stored) setUser(JSON.parse(stored));
-  }, []);
+    // Load existing session on app start
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setIsLoading(false)
+    })
 
-  const signIn = (provider: 'google' | 'apple') => {
-    const mockUser: User = {
-      name: provider === 'google' ? 'Alex Johnson' : 'Alex J.',
-      email: provider === 'google' ? 'alex@gmail.com' : 'alex@icloud.com',
-    };
-    setUser(mockUser);
-    localStorage.setItem('snaporia_user', JSON.stringify(mockUser));
-  };
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setIsLoading(false)
+    })
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem('snaporia_user');
-  };
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const signIn = async (provider: 'google' | 'apple') => {
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+  }
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
+  }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, signIn, signOut }}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      isAuthenticated: !!user,
+      isLoading,
+      signIn,
+      signOut,
+    }}>
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-};
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
+  return ctx
+}

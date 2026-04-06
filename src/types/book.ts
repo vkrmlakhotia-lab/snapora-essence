@@ -6,32 +6,48 @@ export interface BookPhoto {
   isDuplicate?: boolean;
 }
 
-// Layout types: {count}-{variant}
 export type PageLayout =
-  // 1 photo
-  | 'full-bleed'
-  | 'matted'
-  | 'left-portrait'
-  // 2 photos
-  | 'split'
-  | 'hero-detail'
-  | 'two-verticals'
-  // 3 photos
-  | 'triptych'
-  | 'hero-stack'
-  | 'triple-vertical'
-  // 4 photos
-  | 'grid-2x2'
-  | 'hero-triptych'
-  // 5 photos
-  | 'hero-right-stack'
-  | 'two-large-three-wide'
-  // 6 photos
-  | 'grid-3x2'
-  | 'hero-mixed-stack'
-  // Mixed orientation
-  | 'vert-horiz-pair'
-  | 'landscape-top-two-vert';
+  // Photos Only
+  | 'full-bleed'           // 1 photo — edge to edge, no margin
+  | 'single-bordered'      // 1 photo — centered with white margin
+  | 'two-stacked'          // 2 photos — stacked vertically
+  | 'two-side'             // 2 photos — side by side
+  | 'three-mixed'          // 3 photos — 1 large top + 2 small bottom
+  | 'four-grid'            // 4 photos — 2×2 grid
+  | 'five-collage'         // 5 photos — 2 top + 3 bottom
+  // Photos & Text
+  | 'photo-caption-below'  // photo (~70%) + caption text below
+  | 'photo-caption-above'  // caption text above + photo below
+  | 'text-left-photo-right'// text on left + photo on right
+  | 'photo-left-text-right'// photo on left + text on right
+  // Text Only
+  | 'text-only'            // centered title + subtitle + divider
+  // Cover
+  | 'cover'                // full-bleed photo + title overlay at bottom
+  // Legacy aliases
+  | '1-up'                 // → full-bleed
+  | '2-up'                 // → two-side
+  | '3-up';                // → three-mixed
+
+/** How many photos a given layout requires */
+export const LAYOUT_PHOTO_COUNT: Record<PageLayout, number> = {
+  'full-bleed': 1,
+  'single-bordered': 1,
+  'two-stacked': 2,
+  'two-side': 2,
+  'three-mixed': 3,
+  'four-grid': 4,
+  'five-collage': 5,
+  'photo-caption-below': 1,
+  'photo-caption-above': 1,
+  'text-left-photo-right': 1,
+  'photo-left-text-right': 1,
+  'text-only': 0,
+  'cover': 1,
+  '1-up': 1,
+  '2-up': 2,
+  '3-up': 3,
+};
 
 export type PaperFinish = 'matte' | 'glossy' | 'layflat';
 
@@ -42,9 +58,6 @@ export interface BookPage {
   layout: PageLayout;
   photos: BookPhoto[];
   caption?: string;
-  dateLabel?: string;
-  mapUrl?: string;
-  mapPinLabel?: string;
 }
 
 export interface Collaborator {
@@ -106,66 +119,4 @@ export const AI_PROMPTS: { prompt: string; label: string }[] = [
   { prompt: 'Cinematic travel journal with full-bleed photos', label: 'Travel Journal' },
   { prompt: 'Modern yearbook with clean grid layouts', label: 'Year in Review' },
   { prompt: 'Cozy family memories with warm tones', label: 'Family Memories' },
-];
-
-/** How many photos a layout expects */
-export function layoutPhotoCount(layout: PageLayout): number {
-  switch (layout) {
-    case 'full-bleed':
-    case 'matted':
-    case 'left-portrait':
-      return 1;
-    case 'split':
-    case 'hero-detail':
-    case 'two-verticals':
-      return 2;
-    case 'triptych':
-    case 'hero-stack':
-    case 'triple-vertical':
-    case 'vert-horiz-pair':
-    case 'landscape-top-two-vert':
-      return 3;
-    case 'grid-2x2':
-    case 'hero-triptych':
-      return 4;
-    case 'hero-right-stack':
-    case 'two-large-three-wide':
-      return 5;
-    case 'grid-3x2':
-    case 'hero-mixed-stack':
-      return 6;
-  }
-}
-
-export interface LayoutOption {
-  layout: PageLayout;
-  label: string;
-  photoCount: number;
-}
-
-export const ALL_LAYOUTS: LayoutOption[] = [
-  // 1 photo
-  { layout: 'full-bleed', label: 'Full Bleed', photoCount: 1 },
-  { layout: 'matted', label: 'Matted', photoCount: 1 },
-  { layout: 'left-portrait', label: 'Left Portrait', photoCount: 1 },
-  // 2 photos
-  { layout: 'split', label: 'Split', photoCount: 2 },
-  { layout: 'hero-detail', label: 'Hero + Detail', photoCount: 2 },
-  { layout: 'two-verticals', label: 'Two Verticals', photoCount: 2 },
-  // 3 photos
-  { layout: 'triptych', label: 'Triptych', photoCount: 3 },
-  { layout: 'hero-stack', label: 'Hero + Stack', photoCount: 3 },
-  { layout: 'triple-vertical', label: 'Triple Vertical', photoCount: 3 },
-  // 4 photos
-  { layout: 'grid-2x2', label: '2×2 Grid', photoCount: 4 },
-  { layout: 'hero-triptych', label: 'Hero + Triptych', photoCount: 4 },
-  // 5 photos
-  { layout: 'hero-right-stack', label: 'Hero + Stack', photoCount: 5 },
-  { layout: 'two-large-three-wide', label: '2 + 3 Grid', photoCount: 5 },
-  // 6 photos
-  { layout: 'grid-3x2', label: '3×2 Grid', photoCount: 6 },
-  { layout: 'hero-mixed-stack', label: 'Hero + Mixed', photoCount: 6 },
-  // Mixed
-  { layout: 'vert-horiz-pair', label: 'Vert + Horiz', photoCount: 3 },
-  { layout: 'landscape-top-two-vert', label: 'Top + 2 Vert', photoCount: 3 },
 ];

@@ -5,7 +5,7 @@ import type { Collaborator } from '@/types/book';
 interface CollaboratePanelProps {
   shareLink?: string;
   collaborators: Collaborator[];
-  onGenerateLink: () => string;
+  onGenerateLink: () => Promise<string>;
   onAddCollaborator: (name: string, email: string) => void;
 }
 
@@ -16,8 +16,8 @@ const CollaboratePanel = ({ shareLink, collaborators, onGenerateLink, onAddColla
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
-  const handleGenerateLink = () => {
-    const newLink = onGenerateLink();
+  const handleGenerateLink = async () => {
+    const newLink = await onGenerateLink();
     setLink(newLink);
   };
 
