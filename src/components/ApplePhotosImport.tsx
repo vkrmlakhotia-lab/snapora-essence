@@ -462,13 +462,41 @@ const ApplePhotosImport = ({ onImport }: Props) => {
     }
   }
 
-  // STEP: Photo selection
+  // STEP: Photo selection — date-grouped with per-group select/deselect
   if (step === 'selecting') {
     const selectedCount = selectedIds.size
+
+    // Group displayed photos by date label
+    const grouped: { label: string; photos: RichPhoto[] }[] = []
+    const labelMap = new Map<string, RichPhoto[]>()
+    for (const photo of displayedPhotos) {
+      const label = photo.date
+        ? photo.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : 'No date'
+      if (!labelMap.has(label)) labelMap.set(label, [])
+      labelMap.get(label)!.push(photo)
+    }
+    labelMap.forEach((photos, label) => grouped.push({ label, photos }))
+
+    const allGroupSelected = (photos: RichPhoto[]) =>
+      photos.every(p => selectedIds.has(p.bookPhoto.id))
+
+    const toggleGroup = (photos: RichPhoto[]) => {
+      const allSelected = allGroupSelected(photos)
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        photos.forEach(p =>
+          allSelected ? next.delete(p.bookPhoto.id) : next.add(p.bookPhoto.id)
+        )
+        return next
+      })
+    }
+
     return (
-      <div className="space-y-4 animate-fade-in">
+      <div className="flex flex-col min-h-[60vh] animate-fade-in">
+        {/* People name input */}
         {category === 'people' && (
-          <div>
+          <div className="px-1 mb-4">
             <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Who is this book about?</label>
             <input
               type="text"
@@ -480,66 +508,88 @@ const ApplePhotosImport = ({ onImport }: Props) => {
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {displayedPhotos.length} photo{displayedPhotos.length !== 1 ? 's' : ''} found
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3 px-1">
+          <p className="text-sm font-semibold text-foreground">
+            {displayedPhotos.length} Photos
           </p>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setSelectedIds(new Set(displayedPhotos.map(p => p.bookPhoto.id)))}
-              className="text-xs text-primary font-medium"
-            >
-              Select all
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="text-xs text-muted-foreground font-medium"
-            >
-              Clear
-            </button>
-          </div>
+          <button
+            onClick={() =>
+              selectedCount === displayedPhotos.length
+                ? setSelectedIds(new Set())
+                : setSelectedIds(new Set(displayedPhotos.map(p => p.bookPhoto.id)))
+            }
+            className="text-xs text-primary font-medium"
+          >
+            {selectedCount === displayedPhotos.length ? 'Deselect All' : 'Select All'}
+          </button>
         </div>
 
         {displayedPhotos.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8 flex-1">
             <p className="text-sm text-muted-foreground">No photos found for this selection.</p>
             <button onClick={() => setStep('options')} className="text-xs text-primary mt-2">← Go back</button>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-1">
-            {displayedPhotos.map(photo => {
-              const isSelected = selectedIds.has(photo.bookPhoto.id)
+          <div className="space-y-5 pb-24">
+            {grouped.map(({ label, photos }) => {
+              const groupAllSelected = allGroupSelected(photos)
               return (
-                <button
-                  key={photo.bookPhoto.id}
-                  onClick={() => togglePhoto(photo.bookPhoto.id)}
-                  className="aspect-square rounded-lg overflow-hidden relative"
-                >
-                  <img src={photo.bookPhoto.url} alt="" className="w-full h-full object-cover" />
-                  <div className={`absolute inset-0 transition-opacity ${isSelected ? 'opacity-0' : 'opacity-50 bg-background'}`} />
-                  <div className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isSelected ? 'bg-primary border-primary' : 'border-white/80 bg-black/20'
-                  }`}>
-                    {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
+                <div key={label}>
+                  {/* Date header */}
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-sm font-semibold text-foreground">{label}</p>
+                    <button
+                      onClick={() => toggleGroup(photos)}
+                      className="text-xs text-primary font-medium"
+                    >
+                      {groupAllSelected ? 'Deselect' : 'Select'}
+                    </button>
                   </div>
-                  {photo.date && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-1.5 py-0.5">
-                      <p className="text-[8px] text-white/80">{photo.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
-                    </div>
-                  )}
-                </button>
+
+                  {/* Photo grid for group */}
+                  <div className="grid grid-cols-3 gap-0.5">
+                    {photos.map(photo => {
+                      const isSelected = selectedIds.has(photo.bookPhoto.id)
+                      return (
+                        <button
+                          key={photo.bookPhoto.id}
+                          onClick={() => togglePhoto(photo.bookPhoto.id)}
+                          className="aspect-square relative overflow-hidden"
+                        >
+                          <img src={photo.bookPhoto.url} alt="" className="w-full h-full object-cover" />
+                          {/* Dim overlay when deselected */}
+                          {!isSelected && (
+                            <div className="absolute inset-0 bg-black/40" />
+                          )}
+                          {/* Checkmark badge */}
+                          <div className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? 'bg-[#00C2A8] border-[#00C2A8]'
+                              : 'border-white/70 bg-transparent'
+                          }`}>
+                            {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )
             })}
           </div>
         )}
 
-        <button
-          onClick={handleConfirmSelection}
-          disabled={selectedCount === 0}
-          className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-30 sticky bottom-0"
-        >
-          Add {selectedCount} Photo{selectedCount !== 1 ? 's' : ''} to Book
-        </button>
+        {/* Fixed Continue button */}
+        <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-3 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+          <button
+            onClick={handleConfirmSelection}
+            disabled={selectedCount === 0}
+            className="w-full h-12 bg-[#00C2A8] text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-30 pointer-events-auto"
+          >
+            Continue ({selectedCount} Selected)
+          </button>
+        </div>
       </div>
     )
   }
