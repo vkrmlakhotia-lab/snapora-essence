@@ -7,7 +7,10 @@ import { PAPER_FINISHES, BOOK_STYLES } from '@/types/book';
 import ApplePhotosImport from '@/components/ApplePhotosImport';
 import SmartCuration from '@/components/SmartCuration';
 
+type Mode = 'choose' | 'quick' | 'scratch';
+
 const CreateBook = () => {
+  const [mode, setMode] = useState<Mode>('choose');
   const [photos, setPhotos] = useState<BookPhoto[]>([]);
   const [title, setTitle] = useState('My Photobook');
   const [paperFinish, setPaperFinish] = useState<PaperFinish>('matte');
@@ -58,11 +61,63 @@ const CreateBook = () => {
 
   const visibleCount = photos.filter(p => !hiddenIds.has(p.id)).length;
 
+  // ── Mode selector (screen 06b · Quick Start or From Scratch) ──────────────
+  if (mode === 'choose') {
+    return (
+      <div className="min-h-screen bg-[#d9d9d9] flex flex-col items-center justify-center px-5 relative">
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-[#f2f2f2]/55" />
+
+        {/* Close button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-14 right-5 w-10 h-10 bg-white/80 rounded-full flex items-center justify-center z-10"
+        >
+          <span className="text-[22px] text-[#1a1a1a] leading-none">×</span>
+        </button>
+
+        <div className="relative z-10 w-full space-y-5">
+          {/* Quick Start card */}
+          <div
+            onClick={() => setMode('quick')}
+            className="bg-white border-[2.5px] border-[#2eccb2] rounded-[20px] p-6 cursor-pointer shadow-[0px_6px_18px_0px_rgba(46,204,178,0.18)] relative"
+          >
+            {/* Badge */}
+            <div className="absolute -top-3.5 right-6 bg-[#2eccb2] rounded-full px-4 py-0.5">
+              <span className="text-[10px] font-bold text-white tracking-[0.8px]">OUR FAVOURITE</span>
+            </div>
+            <div className="w-[52px] h-[52px] bg-[#e0f7f5] rounded-[14px] flex items-center justify-center mb-4 mx-auto">
+              <span className="text-[26px]">✦</span>
+            </div>
+            <h2 className="text-[24px] font-semibold text-[#1a1a1a] text-center">Quick start →</h2>
+            <p className="text-[14px] text-[#999] text-center mt-2 leading-snug">
+              Pick at least 10 photos and watch{'\n'}your book come to life in seconds.
+            </p>
+          </div>
+
+          {/* From Scratch card */}
+          <div
+            onClick={() => setMode('scratch')}
+            className="bg-white/88 border border-[#d9d9d9] rounded-[20px] p-6 cursor-pointer"
+          >
+            <div className="w-[52px] h-[52px] bg-[#f0f0f0] rounded-[14px] flex items-center justify-center mb-4 mx-auto">
+              <span className="text-[24px]">✏</span>
+            </div>
+            <h2 className="text-[22px] font-semibold text-[#666] text-center">From scratch →</h2>
+            <p className="text-[13px] text-[#999] text-center mt-2 leading-snug">
+              Begin with an empty book and shape{'\n'}your story at your own pace.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="px-6 pt-14 pb-4">
-        <button onClick={() => navigate(-1)} className="text-sm text-muted-foreground mb-4">
+        <button onClick={() => setMode('choose')} className="text-sm text-muted-foreground mb-4">
           ← Back
         </button>
         <h1 className="text-2xl font-semibold text-foreground tracking-tight">New Book</h1>

@@ -1,37 +1,42 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBooks } from '@/context/BookContext';
-import { ArrowLeft, Package, Truck, CheckCircle2, Printer } from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
 
-const MOCK_ORDERS = [
+type DeliveryStatus = 'confirmed' | 'printing' | 'dispatched' | 'out_for_delivery' | 'delivered';
+
+const MOCK_ORDERS: Array<{
+  status: DeliveryStatus;
+  trackingNumber?: string;
+  trackingCarrier?: string;
+  trackingUrl?: string;
+  steps: Array<{ key: DeliveryStatus; label: string; timestamp?: string }>;
+}> = [
   {
-    status: 'delivered' as const,
-    trackingNumber: 'SN-2026-XK9F3',
-    estimatedDelivery: '2026-03-28',
-    orderedAt: '2026-03-20',
+    status: 'dispatched',
+    trackingNumber: '1Z999AA10123456784',
+    trackingCarrier: 'DPD',
+    trackingUrl: 'https://track.dpd.co.uk/',
+    steps: [
+      { key: 'confirmed', label: 'Order Confirmed', timestamp: '1 Apr 2026, 09:32' },
+      { key: 'printing', label: 'Printing', timestamp: 'Estimated 2-3 Apr' },
+      { key: 'dispatched', label: 'Dispatched', timestamp: 'Expected 3 Apr' },
+      { key: 'out_for_delivery', label: 'Out for Delivery', timestamp: 'Expected 7 Apr' },
+      { key: 'delivered', label: 'Delivered', timestamp: 'Expected 7 Apr' },
+    ],
   },
   {
-    status: 'shipped' as const,
-    trackingNumber: 'SN-2026-AB2D7',
-    estimatedDelivery: '2026-04-05',
-    orderedAt: '2026-03-30',
-  },
-  {
-    status: 'printed' as const,
-    trackingNumber: undefined,
-    estimatedDelivery: '2026-04-10',
-    orderedAt: '2026-04-01',
+    status: 'printing',
+    steps: [
+      { key: 'confirmed', label: 'Order Confirmed', timestamp: '3 Apr 2026, 14:15' },
+      { key: 'printing', label: 'Printing', timestamp: 'Estimated 5-6 Apr' },
+      { key: 'dispatched', label: 'Dispatched', timestamp: 'Expected 7 Apr' },
+      { key: 'out_for_delivery', label: 'Out for Delivery', timestamp: 'Expected 10 Apr' },
+      { key: 'delivered', label: 'Delivered', timestamp: 'Expected 10 Apr' },
+    ],
   },
 ];
 
-const steps = [
-  { key: 'processing', label: 'Order Placed', icon: Package },
-  { key: 'printed', label: 'Printed', icon: Printer },
-  { key: 'shipped', label: 'Shipped', icon: Truck },
-  { key: 'delivered', label: 'Delivered', icon: CheckCircle2 },
-];
-
-const statusIndex = (s: string) => steps.findIndex(st => st.key === s);
+const STATUS_ORDER: DeliveryStatus[] = ['confirmed', 'printing', 'dispatched', 'out_for_delivery', 'delivered'];
 
 const OrderTracking = () => {
   const navigate = useNavigate();
@@ -40,11 +45,13 @@ const OrderTracking = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="flex items-center gap-3 px-4 pt-12 pb-4">
+      <header className="flex items-center gap-3 px-4 pt-12 pb-4 border-b border-border">
         <button onClick={() => navigate(-1)} className="p-2">
-          <ArrowLeft size={20} strokeWidth={1.5} className="text-foreground" />
+          <ArrowLeft size={20} strokeWidth={1.5} className="text-[#007aff]" />
         </button>
-        <span className="text-sm font-medium text-foreground">Order Tracking</span>
+        <span className="flex-1 text-center text-[17px] font-semibold text-foreground pr-10">
+          Order Tracking
+        </span>
       </header>
 
       {orderedProjects.length === 0 ? (
@@ -53,72 +60,94 @@ const OrderTracking = () => {
           <p className="text-sm text-muted-foreground">No orders yet</p>
         </div>
       ) : (
-        <div className="px-6 space-y-6">
+        <div className="px-4 pt-5 space-y-6">
           {orderedProjects.map((project, oi) => {
             const mock = MOCK_ORDERS[oi % MOCK_ORDERS.length];
-            const currentStep = statusIndex(mock.status);
+            const currentStatusIndex = STATUS_ORDER.indexOf(mock.status);
 
             return (
-              <div key={project.id} className="bg-card rounded-xl p-5 card-shadow animate-fade-in">
-                {/* Book info */}
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+              <div key={project.id} className="animate-fade-in">
+                {/* Book summary card */}
+                <div className="bg-[#f7f7f7] rounded-[12px] px-4 py-4 flex items-center gap-3 mb-5">
+                  <div className="w-[70px] h-[70px] rounded-lg overflow-hidden bg-muted flex-shrink-0">
                     {project.coverPhoto ? (
                       <img src={project.coverPhoto} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-primary flex items-center justify-center">
-                        <span className="text-primary-foreground text-[10px]">S</span>
+                        <span className="text-primary-foreground text-xs font-bold">S</span>
                       </div>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">{project.title}</p>
-                    <p className="text-[11px] text-muted-foreground">Ordered {new Date(mock.orderedAt).toLocaleDateString()}</p>
+                    <p className="text-[16px] font-semibold text-[#1a1a1a]">{project.title}</p>
+                    <p className="text-[12px] text-[#999] mt-0.5">
+                      Order #{mock.trackingNumber ? mock.trackingNumber.slice(-8) : 'SN-20250801'}
+                    </p>
+                    <p className="text-[14px] font-medium text-[#1a1a1a] mt-0.5">
+                      £{(project.pages.length * 1.5 + 3.99).toFixed(2)}
+                    </p>
                   </div>
                 </div>
 
+                <p className="text-[14px] font-semibold text-[#1a1a1a] mb-4">Delivery Status</p>
+
                 {/* Timeline */}
-                <div className="space-y-0">
-                  {steps.map((step, i) => {
-                    const Icon = step.icon;
-                    const isCompleted = i <= currentStep;
-                    const isCurrent = i === currentStep;
+                <div className="pl-2">
+                  {mock.steps.map((step, i) => {
+                    const stepIndex = STATUS_ORDER.indexOf(step.key);
+                    const isCompleted = stepIndex <= currentStatusIndex;
+                    const isCurrent = stepIndex === currentStatusIndex;
+                    const isLast = i === mock.steps.length - 1;
 
                     return (
-                      <div key={step.key} className="flex items-start gap-3">
+                      <div key={step.key} className="flex items-start gap-4">
+                        {/* Dot + connector */}
                         <div className="flex flex-col items-center">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                            isCompleted ? 'bg-primary' : 'bg-muted'
+                          <div className={`w-5 h-5 rounded-[10px] flex items-center justify-center flex-shrink-0 ${
+                            isCompleted && !isCurrent ? 'bg-[#33bf66]' :
+                            isCurrent ? 'bg-[#007aff]' :
+                            'bg-[#d9d9d9]'
                           }`}>
-                            <Icon size={14} strokeWidth={1.5} className={isCompleted ? 'text-primary-foreground' : 'text-muted-foreground'} />
+                            {isCompleted && !isCurrent && (
+                              <span className="text-white text-[11px] font-bold">✓</span>
+                            )}
                           </div>
-                          {i < steps.length - 1 && (
-                            <div className={`w-0.5 h-6 ${i < currentStep ? 'bg-primary' : 'bg-border'}`} />
+                          {!isLast && (
+                            <div className={`w-0.5 h-[42px] mt-0.5 ${stepIndex < currentStatusIndex ? 'bg-[#33bf66]' : 'bg-[#d9d9d9]'}`} />
                           )}
                         </div>
-                        <div className="pt-1">
-                          <p className={`text-xs font-medium ${isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+
+                        {/* Label + timestamp */}
+                        <div className="pb-1">
+                          <p className={`text-[15px] font-medium ${isCurrent ? 'text-[#007aff]' : isCompleted ? 'text-[#1a1a1a]' : 'text-[#999]'}`}>
                             {step.label}
-                            {isCurrent && <span className="ml-1.5 text-primary">●</span>}
                           </p>
+                          {step.timestamp && (
+                            <p className="text-[12px] text-[#999] mt-0.5">{step.timestamp}</p>
+                          )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Tracking info */}
+                {/* Tracking number card + CTA */}
                 {mock.trackingNumber && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-[11px] text-muted-foreground">
-                      Tracking: <span className="font-mono text-foreground">{mock.trackingNumber}</span>
-                    </p>
-                    {mock.estimatedDelivery && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Est. delivery: {new Date(mock.estimatedDelivery).toLocaleDateString()}
+                  <>
+                    <div className="bg-[#f7f7f7] rounded-[12px] px-4 py-4 mt-5">
+                      <p className="text-[12px] text-[#999]">Tracking Number</p>
+                      <p className="text-[14px] font-medium text-[#007aff] mt-1">
+                        {mock.trackingCarrier}: {mock.trackingNumber}
                       </p>
-                    )}
-                  </div>
+                    </div>
+
+                    <button
+                      onClick={() => mock.trackingUrl && window.open(mock.trackingUrl, '_blank')}
+                      className="w-full h-[50px] bg-[#007aff] text-white rounded-[12px] font-medium text-[15px] mt-3 hover:opacity-90 transition-opacity"
+                    >
+                      Track with {mock.trackingCarrier}
+                    </button>
+                  </>
                 )}
               </div>
             );

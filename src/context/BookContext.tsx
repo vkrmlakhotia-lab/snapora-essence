@@ -17,7 +17,7 @@ interface BookContextType {
   updateProjectTitle: (title: string) => Promise<void>
   updateProjectSettings: (updates: Partial<BookProject>) => Promise<void>
   deleteProject: (id: string) => Promise<void>
-  markOrdered: (id: string) => Promise<void>
+  markOrdered: (id: string) => Promise<string | null>
   clearCurrentProject: () => void
   generateShareLink: (id: string) => Promise<string>
   addCollaborator: (name: string, email: string) => Promise<void>
@@ -213,6 +213,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
             page_id: pageRow.id,
             project_id: projectRow.id,
             url: ph.url,
+            storage_path: ph.storagePath ?? null,
             is_low_res: ph.isLowRes ?? false,
             is_duplicate: ph.isDuplicate ?? false,
             position: j,
@@ -326,9 +327,22 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentProject?.id === id) setCurrentProjectState(null)
   }
 
-  const markOrdered = async (id: string) => {
-    await supabase.from('book_projects').update({ status: 'ordered' }).eq('id', id)
+  const markOrdered = async (id: string): Promise<string | null> => {
+    const project = projects.find(p => p.id === id)
+    if (!project || !user) return null
+    const { data: order } = await supabase.from('orders').insert({
+      user_id: user.id,
+      book_id: id,
+      book_title: project.title,
+      page_count: project.pages.length,
+      price_per_page: 1.5,
+      delivery_fee: 4.99,
+      total: project.pages.length * 1.5 + 4.99,
+    }).select('id').single()
+    const orderedAt = new Date().toISOString()
+    await supabase.from('book_projects').update({ status: 'ordered', ordered_at: orderedAt }).eq('id', id)
     setProjects(prev => prev.map(p => p.id === id ? { ...p, status: 'ordered' as const } : p))
+    return order?.id ?? null
   }
 
   const generateShareLink = async (id: string): Promise<string> => {

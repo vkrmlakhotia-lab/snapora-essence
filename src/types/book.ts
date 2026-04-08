@@ -1,6 +1,7 @@
 export interface BookPhoto {
   id: string;
   url: string;
+  storagePath?: string;
   file?: File;
   isLowRes?: boolean;
   isDuplicate?: boolean;
@@ -73,7 +74,7 @@ export interface BookProject {
   title: string;
   coverPhoto?: string;
   pages: BookPage[];
-  status: 'draft' | 'completed' | 'ordered';
+  status: 'draft' | 'completed' | 'ordered' | 'archived';
   createdAt: string;
   updatedAt: string;
   paperFinish?: PaperFinish;

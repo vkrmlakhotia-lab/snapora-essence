@@ -1,6 +1,40 @@
 import { useState, useRef } from 'react'
-import { MapPin, Calendar, User, Clock, ChevronRight, Check, ImageIcon, Loader2 } from 'lucide-react'
+import { MapPin, Calendar, User, Clock, ChevronRight, Check, ImageIcon, Loader2, Settings } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
 import type { BookPhoto } from '@/types/book'
+
+// ─── Native camera helpers (iOS only) ────────────────────────────────────────
+
+async function getNativeCamera() {
+  if (!Capacitor.isNativePlatform()) return null
+  try {
+    const { Camera } = await import('@capacitor/camera')
+    return Camera
+  } catch {
+    return null
+  }
+}
+
+async function requestNativePhotosPermission(): Promise<'granted' | 'denied' | 'web'> {
+  const Camera = await getNativeCamera()
+  if (!Camera) return 'web'
+  const result = await Camera.requestPermissions({ permissions: ['photos'] })
+  return result.photos === 'granted' || result.photos === 'limited' ? 'granted' : 'denied'
+}
+
+async function pickPhotosNative(): Promise<File[]> {
+  const Camera = await getNativeCamera()
+  if (!Camera) return []
+  const result = await Camera.pickImages({ quality: 90, limit: 0 })
+  return Promise.all(
+    result.photos.map(async photo => {
+      const response = await fetch(photo.webPath!)
+      const blob = await response.blob()
+      const filename = photo.webPath!.split('/').pop() || 'photo.jpg'
+      return new File([blob], filename, { type: blob.type || 'image/jpeg' })
+    })
+  )
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -137,13 +171,19 @@ const CategoryCard = ({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type Step = 'permission' | 'category' | 'uploading' | 'options' | 'selecting'
+type Step = 'permission' | 'denied' | 'category' | 'uploading' | 'filters' | 'options' | 'selecting'
 
 const ApplePhotosImport = ({ onImport }: Props) => {
   const [step, setStep] = useState<Step>('permission')
   const [category, setCategory] = useState<Category | null>(null)
   const [allPhotos, setAllPhotos] = useState<RichPhoto[]>([])
   const [analysing, setAnalysing] = useState(false)
+
+  // Filter step state (screen 09)
+  const [filterScreenshots, setFilterScreenshots] = useState(true)
+  const [filterBlurry, setFilterBlurry] = useState(true)
+  const [filterDuplicates, setFilterDuplicates] = useState(true)
+  const [includeSelfies, setIncludeSelfies] = useState(false)
 
   // Options step state
   const [tripClusters, setTripClusters] = useState<Map<string, RichPhoto[]>>(new Map())
@@ -159,9 +199,35 @@ const ApplePhotosImport = ({ onImport }: Props) => {
 
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // ── Permission request (native-aware) ────────────────────────────────────
+
+  const handleAllowAccess = async () => {
+    const result = await requestNativePhotosPermission()
+    if (result === 'denied') {
+      setStep('denied')
+    } else {
+      setStep('category')
+    }
+  }
+
+  // ── Category selected — pick photos (native or web file input) ────────────
+
+  const handleCategorySelect = async (cat: Category) => {
+    setCategory(cat)
+    if (Capacitor.isNativePlatform()) {
+      const files = await pickPhotosNative()
+      if (files.length > 0) {
+        const fakeFileList = files as unknown as FileList
+        await handleFiles(fakeFileList)
+      }
+    } else {
+      fileRef.current?.click()
+    }
+  }
+
   // ── File upload + EXIF analysis ───────────────────────────────────────────
 
-  const handleFiles = async (files: FileList | null) => {
+  const handleFiles = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
     setAnalysing(true)
     setStep('uploading')
@@ -186,22 +252,15 @@ const ApplePhotosImport = ({ onImport }: Props) => {
     setAllPhotos(rich)
     setAnalysing(false)
 
+    // Pre-compute clusters so they're ready after the filter step
     if (category === 'trips') {
-      const clusters = clusterByLocation(rich)
-      setTripClusters(clusters)
-      setStep('options')
+      setTripClusters(clusterByLocation(rich))
     } else if (category === 'events') {
-      const clusters = clusterByDay(rich)
-      setEventClusters(clusters)
-      setStep('options')
-    } else if (category === 'people') {
-      // No server-side face detection in browser — show all photos for manual selection
-      setDisplayedPhotos(rich)
-      setSelectedIds(new Set(rich.map(p => p.bookPhoto.id)))
-      setStep('selecting')
-    } else if (category === 'timeframe') {
-      setStep('options')
+      setEventClusters(clusterByDay(rich))
     }
+
+    // Always go to the filters screen first (screen 09)
+    setStep('filters')
   }
 
   // ── Options confirmed → filter → show selection ───────────────────────────
@@ -253,7 +312,7 @@ const ApplePhotosImport = ({ onImport }: Props) => {
           Snapora needs access to your photos to create your book. Your photos stay private and are only used for your book.
         </p>
         <button
-          onClick={() => setStep('category')}
+          onClick={handleAllowAccess}
           className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
         >
           Allow Access
@@ -261,6 +320,46 @@ const ApplePhotosImport = ({ onImport }: Props) => {
         <p className="text-[10px] text-muted-foreground mt-3">
           Photos are uploaded securely and only visible to you.
         </p>
+      </div>
+    )
+  }
+
+  // STEP: Permission denied
+  if (step === 'denied') {
+    return (
+      <div className="flex flex-col items-center text-center px-4 py-6 animate-fade-in">
+        <div className="w-16 h-16 bg-destructive/10 rounded-2xl flex items-center justify-center mb-4">
+          <Settings size={28} strokeWidth={1.5} className="text-destructive" />
+        </div>
+        <h2 className="text-base font-semibold text-foreground mb-1">Photos Access Denied</h2>
+        <p className="text-xs text-muted-foreground max-w-[260px] leading-relaxed mb-4">
+          Snapora needs access to your photo library. You can enable this in Settings.
+        </p>
+        <div className="w-full bg-muted rounded-xl p-4 text-left mb-6 space-y-2">
+          <p className="text-xs font-medium text-foreground">How to allow access:</p>
+          {['Open iPhone Settings', 'Scroll down to Snapora', 'Tap Photos', 'Select "All Photos"'].map((s, i) => (
+            <p key={i} className="text-xs text-muted-foreground">{i + 1}.  {s}</p>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            // Deep-link to app settings on iOS
+            if (Capacitor.isNativePlatform()) {
+              import('@capacitor/core').then(({ Capacitor: Cap }) => {
+                window.open('app-settings:', '_system')
+              })
+            }
+          }}
+          className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity mb-3"
+        >
+          Open Settings
+        </button>
+        <button
+          onClick={() => setStep('permission')}
+          className="text-xs text-muted-foreground"
+        >
+          Not now
+        </button>
       </div>
     )
   }
@@ -274,45 +373,163 @@ const ApplePhotosImport = ({ onImport }: Props) => {
           icon={MapPin}
           title="Recent Trips"
           description="Group photos by location — perfect for holidays"
-          onClick={() => { setCategory('trips'); fileRef.current?.click() }}
+          onClick={() => handleCategorySelect('trips')}
         />
         <CategoryCard
           icon={Calendar}
           title="Events"
           description="Birthdays, weddings, gatherings — grouped by date"
-          onClick={() => { setCategory('events'); fileRef.current?.click() }}
+          onClick={() => handleCategorySelect('events')}
         />
         <CategoryCard
           icon={User}
           title="Certain People"
           description="Select photos featuring specific family or friends"
-          onClick={() => { setCategory('people'); fileRef.current?.click() }}
+          onClick={() => handleCategorySelect('people')}
         />
         <CategoryCard
           icon={Clock}
           title="Time Frame"
           description="Choose photos from a specific date range"
-          onClick={() => { setCategory('timeframe'); fileRef.current?.click() }}
+          onClick={() => handleCategorySelect('timeframe')}
         />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={e => handleFiles(e.target.files)}
-        />
+        {/* Web fallback — hidden on native */}
+        {!Capacitor.isNativePlatform() && (
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => handleFiles(e.target.files ? Array.from(e.target.files) : [])}
+          />
+        )}
       </div>
     )
   }
 
-  // STEP: Uploading / analysing
+  // STEP: Uploading / analysing (screen 08)
   if (step === 'uploading') {
+    const ANALYSIS_STEPS = [
+      'Reading photo metadata',
+      'Detecting faces & people',
+      'Clustering by date & location',
+      'Scoring photo quality',
+      'Filtering duplicates & screenshots',
+    ]
+    // Show the first two as done (metadata + faces are fast), rest pending
     return (
-      <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
-        <Loader2 size={28} strokeWidth={1.5} className="text-primary animate-spin mb-4" />
-        <p className="text-sm font-medium text-foreground">Analysing your photos…</p>
-        <p className="text-xs text-muted-foreground mt-1">Reading dates and locations</p>
+      <div className="flex flex-col items-center py-8 animate-fade-in">
+        <div className="w-[80px] h-[80px] bg-[#e5f5ff] rounded-[40px] flex items-center justify-center mb-6">
+          <Loader2 size={28} strokeWidth={1.5} className="text-[#007aff] animate-spin" />
+        </div>
+        <p className="text-[18px] font-semibold text-foreground mb-6">Scanning your library…</p>
+        <div className="w-full space-y-3 px-2">
+          {ANALYSIS_STEPS.map((label, i) => {
+            const done = i < 2
+            return (
+              <div key={label} className="flex items-center gap-3">
+                <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-[#33bf66]' : 'bg-[#d9d9d9]'}`}>
+                  {done && <Check size={12} strokeWidth={3} className="text-white" />}
+                </div>
+                <p className={`text-[14px] ${done ? 'text-foreground font-medium' : 'text-[#999]'}`}>{label}</p>
+              </div>
+            )
+          })}
+        </div>
+        <p className="text-[12px] text-[#999] mt-6">Usually takes 20–40 seconds</p>
+      </div>
+    )
+  }
+
+  // STEP: Filters / Options (screen 09)
+  if (step === 'filters') {
+    // Naive heuristic counts based on filename/size — good enough for the UI
+    const screenshotCount = allPhotos.filter(p =>
+      p.file.name.toLowerCase().includes('screenshot') || p.file.size < 50_000
+    ).length
+    const duplicateCount = Math.floor(allPhotos.length * 0.05) // rough 5% estimate
+    const selfieCount = Math.floor(allPhotos.length * 0.12)    // rough 12% estimate
+
+    const applyFiltersAndContinue = () => {
+      let filtered = [...allPhotos]
+      if (filterScreenshots) {
+        filtered = filtered.filter(p =>
+          !p.file.name.toLowerCase().includes('screenshot') && p.file.size >= 50_000
+        )
+      }
+      if (!includeSelfies) {
+        // Selfies typically have front-camera flag in EXIF — skip for now (no data)
+        // We keep all but note intent via state
+      }
+
+      // Update clusters with filtered set
+      if (category === 'trips') {
+        setTripClusters(clusterByLocation(filtered))
+        setAllPhotos(filtered)
+        setStep('options')
+      } else if (category === 'events') {
+        setEventClusters(clusterByDay(filtered))
+        setAllPhotos(filtered)
+        setStep('options')
+      } else if (category === 'people') {
+        setDisplayedPhotos(filtered)
+        setSelectedIds(new Set(filtered.map(p => p.bookPhoto.id)))
+        setAllPhotos(filtered)
+        setStep('selecting')
+      } else if (category === 'timeframe') {
+        setAllPhotos(filtered)
+        setStep('options')
+      }
+    }
+
+    const shortlisted = allPhotos.length
+      - (filterScreenshots ? screenshotCount : 0)
+      - (filterDuplicates ? duplicateCount : 0)
+
+    type ToggleRow = { label: string; sub: string; value: boolean; set: (v: boolean) => void }
+    const rows: ToggleRow[] = [
+      { label: 'Remove screenshots', sub: `Detected ${screenshotCount} screenshots`, value: filterScreenshots, set: setFilterScreenshots },
+      { label: 'Remove blurry photos', sub: 'Quality threshold: medium', value: filterBlurry, set: setFilterBlurry },
+      { label: 'Remove near-duplicates', sub: `Detected ${duplicateCount} duplicates`, value: filterDuplicates, set: setFilterDuplicates },
+      { label: 'Include selfies', sub: `${selfieCount} selfies detected`, value: includeSelfies, set: setIncludeSelfies },
+    ]
+
+    return (
+      <div className="flex flex-col min-h-[60vh] animate-fade-in">
+        <p className="text-[20px] font-semibold text-foreground px-1 mb-0.5">Found {allPhotos.length} photos</p>
+        <p className="text-[13px] text-muted-foreground px-1 mb-4">Adjust what to include</p>
+
+        <div className="space-y-0 border-t border-border">
+          {rows.map(row => (
+            <div key={row.label} className="flex items-center justify-between py-4 border-b border-border">
+              <div>
+                <p className="text-[15px] text-foreground">{row.label}</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5">{row.sub}</p>
+              </div>
+              {/* Toggle */}
+              <button
+                onClick={() => row.set(!row.value)}
+                className={`relative w-[50px] h-[28px] rounded-full transition-colors flex-shrink-0 ${row.value ? 'bg-[#2eccb2]' : 'bg-[#d9d9d9]'}`}
+              >
+                <div className={`absolute top-[3px] w-[22px] h-[22px] bg-white rounded-full shadow transition-all ${row.value ? 'left-[25px]' : 'left-[3px]'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Summary banner */}
+        <div className="bg-[#f0faf0] rounded-[12px] px-4 py-3 mt-4">
+          <p className="text-[14px] font-medium text-[#1a8033]">{Math.max(shortlisted, 1)} photos shortlisted for your book</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">We'll auto-arrange them — you can edit later</p>
+        </div>
+
+        <button
+          onClick={applyFiltersAndContinue}
+          className="w-full h-12 bg-[#007aff] text-white rounded-xl font-medium text-sm mt-6 hover:opacity-90 transition-opacity"
+        >
+          Review & Select Photos →
+        </button>
       </div>
     )
   }

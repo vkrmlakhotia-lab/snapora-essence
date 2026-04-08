@@ -17,6 +17,7 @@ import Creations from "./pages/Creations.tsx";
 import Basket from "./pages/Basket.tsx";
 import Account from "./pages/Account.tsx";
 import OrderTracking from "./pages/OrderTracking.tsx";
+import GiftFlow from "./pages/GiftFlow.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/basket" element={<Basket />} />
               <Route path="/account" element={<Account />} />
               <Route path="/order-tracking" element={<OrderTracking />} />
+              <Route path="/gift" element={<GiftFlow />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <BottomNav />

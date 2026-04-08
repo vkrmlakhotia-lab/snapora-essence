@@ -3,9 +3,9 @@ import type { BookPhoto } from '@/types/book'
 
 /**
  * Uploads a single photo file to Supabase Storage.
- * Returns the public signed URL (valid for 10 years).
+ * Returns the signed URL (valid for 10 years) and the storage path.
  */
-export async function uploadPhoto(file: File, userId: string): Promise<string> {
+export async function uploadPhoto(file: File, userId: string): Promise<{ url: string; path: string }> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${userId}/${crypto.randomUUID()}.${ext}`
 
@@ -21,12 +21,13 @@ export async function uploadPhoto(file: File, userId: string): Promise<string> {
 
   if (!data?.signedUrl) throw new Error('Failed to get signed URL')
 
-  return data.signedUrl
+  return { url: data.signedUrl, path }
 }
 
 /**
  * Uploads all photos that have a File object attached.
- * Returns a new array with blob URLs replaced by Supabase Storage URLs.
+ * Returns a new array with blob URLs replaced by Supabase Storage URLs,
+ * with storagePath set on each uploaded photo.
  * Photos without a file (e.g. cloud imports) are returned unchanged.
  */
 export async function uploadPhotos(
@@ -37,19 +38,20 @@ export async function uploadPhotos(
   const toUpload = photos.filter(p => p.file)
   let uploaded = 0
 
-  const urlMap = new Map<string, string>()
+  const resultMap = new Map<string, { url: string; path: string }>()
 
   await Promise.all(
     toUpload.map(async photo => {
-      const url = await uploadPhoto(photo.file!, userId)
-      urlMap.set(photo.id, url)
+      const result = await uploadPhoto(photo.file!, userId)
+      resultMap.set(photo.id, result)
       uploaded++
       onProgress?.(uploaded, toUpload.length)
     })
   )
 
   return photos.map(p => {
-    if (!urlMap.has(p.id)) return p
-    return { ...p, url: urlMap.get(p.id)!, file: undefined }
+    const result = resultMap.get(p.id)
+    if (!result) return p
+    return { ...p, url: result.url, storagePath: result.path, file: undefined }
   })
 }
